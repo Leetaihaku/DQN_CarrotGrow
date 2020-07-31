@@ -19,6 +19,8 @@ public class Carrot : Agent
     //Pesticide
     //Nutrients
 
+    Random rand_seed = new Random();
+
     public double Temp = 0;
     public int Humid_cycle = 0;
     //public int Harv_lim = 0;
@@ -35,6 +37,13 @@ public class Carrot : Agent
     // Update is called once per frame
     void Update()
     {
-
+        StartCoroutine(Carrot_Update());
     }
+
+    public IEnumerator Carrot_Update()
+    {
+        yield return new WaitForSeconds(1);
+    }
+
+    
 }

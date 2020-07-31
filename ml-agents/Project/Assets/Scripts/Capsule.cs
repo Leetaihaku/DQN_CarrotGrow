@@ -8,12 +8,15 @@ public class Capsule : Agent
 {
     Rigidbody RGCapsule;
     public Transform TRCapsule;
-    //void Start()
-    //{
-    //    RGCapsule = GetComponent<Rigidbody>();
-    //}
+    void Start()
+    {
+        RGCapsule = GetComponent<Rigidbody>();
+    }
 
     public Transform Portal_L;
+
+
+
 
     public override void OnEpisodeBegin()
     {
@@ -27,6 +30,9 @@ public class Capsule : Agent
 
         TRCapsule.localPosition = new Vector3(0.17f, 0.65f, -0.9f);
     }
+
+
+
 
     public override void CollectObservations(VectorSensor sensor)
     {
@@ -45,7 +51,13 @@ public class Capsule : Agent
 
     }
 
+
+
+
     public float forceMultiplier = 10;
+
+
+
 
     public override void OnActionReceived(float[] vectorAction)
     {
