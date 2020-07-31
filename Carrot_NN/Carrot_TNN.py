@@ -20,14 +20,16 @@ NUM_EPISODES = 500
 BATCH_SIZE = 32
 CAPACITY = 10000
 LEARNING_RATE = 0.01
+NUM_STATES = 3
+NUM_ACTIONS = 4
 Transition = namedtuple('Transition',('state','action','next_action','reward'))
 
 
 
 class ReplayMemory:#DB => 학습용데이터 저장소
 
-    def __init__(self):
-        self.capacity = CAPACITY
+    def __init__(self,Capacity):
+        self.capacity = Capacity
         self.memory = []
         self.index = 0
 
@@ -63,13 +65,13 @@ class Brain:#행동 결정자
         self.model = nn.Sequential()
         self.model.add_module('fc1',nn.Linear(num_states,32))
         self.model.add_module('relu1',nn.ReLU())
-        self.model.add_module('fc2', nn.Linear(num_states, 32))
-        self.model.add_module('relu1', nn.ReLU())
-        self.model.add_module('fc2', nn.Linear(32, num_actions))
+        self.model.add_module('fc2', nn.Linear(32, 32))
+        self.model.add_module('relu2', nn.ReLU())
+        self.model.add_module('fc3', nn.Linear(32, num_actions))
         #신경망 구성 출력
         print(self.model)
         #최적화 기법 선택
-        self.optimizer = optim.RMSprop(self.model.parameters(),lr=LEARNING_RATE)
+        self.optimizer = optim.RMSprop(self.model.parameters(), lr=LEARNING_RATE)
 
     def replay(self):
         '''Replay Memory활용 학습'''
@@ -97,7 +99,7 @@ class Brain:#행동 결정자
             self.model.eval()
         
             #Q함수 계산[신경망 결과 = 행동(0:물주기 1:온도올리기 2:온도내리기)인덱스 및 Q값 구하기]
-            state_action_values = self.model(state_batch).gather(1,action_batch)
+            state_action_values = self.model(state_batch).gather(1, action_batch)
             #Done or Not => Masking
             non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None, batch.next_states)))
             #전체 초기화??
@@ -130,7 +132,8 @@ class Brain:#행동 결정자
             self.model.eval()
             #텐서변환 => Torch Lonetensor -> size 1*1
             with torch.no_grad():
-                action = self.model(state).max(1)[1].view(1,1)
+                #init_state = torch.argmax(init_state)
+                action = torch.argmax(self.model(state)).view(1, 1)
 
         else:
             '''For Exploration-탐험'''
@@ -168,9 +171,6 @@ class Environment:#환경
 
     def __init__(self):
         self.env = Carrot_House()
-        num_states = 3
-        num_actions = 4
-        self.agent = Agent(num_states, num_actions)
         
     def run(self):
         '''실행'''
@@ -183,13 +183,13 @@ class Environment:#환경
             for step in range(MAX_STEP):
                 '''에피소드 진행 반복문'''
                 #행동 결정
-                action = self.agent.get_action(state, episode)
+                action = self.env.agent.get_action(state, episode)
                 #다음 상태, 보상, 종료여부
                 next_state, reward, done = self.env.step(action)
 
                 #에피소드 종료 or 다음스텝
                 if done:
-                    if state > 90.0:
+                    if state[0] > 0.9:
                         reward += 1.0
                         print("당근 재배 성공")
                         break
@@ -217,7 +217,7 @@ class Carrot_House:#하우스 환경
         self.Humid = 0
         self.Temp = 0.0
         self.Cumulative_Step = 0
-        self.agent = Agent(1, 4)
+        self.agent = Agent(NUM_STATES, NUM_ACTIONS)
 
     def step(self, action):
         '''행동진행 => 환경결과'''
@@ -246,10 +246,7 @@ class Carrot_House:#하우스 환경
             done = False
 
         # 보상
-        if done and self.Carrot > 90.0:
-            reward = 1.0
-        elif done and self.Carrot <= 90.0:
-            reward = -1.0
+        reward = -0.001
 
         return self.Carrot, reward, done
 
@@ -266,9 +263,8 @@ class Carrot_House:#하우스 환경
         return
 
     def HP_calculation(self, humid, temp):
-        #Humid + 1 => Humid를 계산 전에 감소시켰기 때문
         #온도에 대해서만 차이계산
-        if humid+1 > 0:
+        if humid > 0:
             carrot = 1.0 - 0.5 * abs(18.0 - temp) / 60
         #전체 차이계산
         else:
@@ -277,12 +273,13 @@ class Carrot_House:#하우스 환경
 
     def reset(self):
         '''환경 초기화'''
-        init_carrot = 0.0
-        init_humid = np.random.uniform(low=0,high=7,size=1)
-        init_temp = np.random.uniform(low=-30.0,high=30.0,size=1)
-        init_state = np.array()
-        np.append(init_state,init_carrot,init_humid,init_temp)
-        return init_state
+        init_carrot = np.array([0.0])
+        init_humid = np.random.uniform(low=0, high=7, size=1)
+        init_temp = np.random.uniform(low=-30.0, high=30.0, size=1)
+        init_state = np.array([init_carrot, init_humid, init_temp])
+        init_state = torch.from_numpy(init_state)
+        init_state = torch.squeeze(init_state)
+        return init_state.float()
 
 if __name__ == '__main__':
     Carrot_env = Environment()
