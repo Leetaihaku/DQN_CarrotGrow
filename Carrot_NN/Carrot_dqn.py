@@ -145,8 +145,6 @@ if __name__ == "__main__":
             reward = reward if not done or score == 499 else -100
 
             # save the sample <s, a, r, s'> to the replay memory
-            print(state, action, reward, next_state, done)
-            exit()
             agent.append_sample(state, action, reward, next_state, done)
             # every time step do the training
             agent.train_model()
