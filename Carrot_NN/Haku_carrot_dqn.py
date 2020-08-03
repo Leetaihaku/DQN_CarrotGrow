@@ -18,9 +18,9 @@ TRAIN_START = 1000
 CAPACITY = 10000
 EPISODES = 2
 MAX_STEPS = 300
-DATA = namedtuple('DATA',('state','action','reward','next_state'))
+DATA = namedtuple('DATA',('state','action','reward','next_state','done'))
 
-class Carrot_House  :  # 하우스 환경
+class Carrot_House  :  #  하우스 환경
 
     def __init__(self):
         '''하우스 환경 셋팅'''
@@ -31,31 +31,31 @@ class Carrot_House  :  # 하우스 환경
 
     def step(self, action):
         '''행동진행 => 환경결과'''
-        # 물주기
+        #  물주기
         if action == 0:
             self.supply_water()
-        # 온도 올리기
+        #  온도 올리기
         elif action == 1:
             self.Temp_up()
-        # 온도 내리기
+        #  온도 내리기
         elif action == 2:
             self.Temp_down()
-        # 현상유지
+        #  현상유지
         elif action == 3:
             self.Wait()
 
         self.Carrot = self.HP_calculation(self.Humid, self.Temp)
 
-        # 하루치 수분량 감쇄
+        #  하루치 수분량 감쇄
         self.Humid -= 1
 
-        # 종료여부
+        #  종료여부
         if self.Cumulative_Step == MAX_STEPS:
             done = True
         else:
             done = False
 
-        # 보상
+        #  보상
         reward = -0.001
 
         next_state = np.array([self.Carrot, self.Humid, self.Temp])
@@ -79,10 +79,10 @@ class Carrot_House  :  # 하우스 환경
         return
 
     def HP_calculation(self, humid, temp):
-        # 온도에 대해서만 차이계산
+        #  온도에 대해서만 차이계산
         if humid > 0:
             carrot = 1.0 - 0.5 * abs(18.0 - temp) / 60
-        # 전체 차이계산
+        #  전체 차이계산
         else:
             carrot = 0.5 - 0.5 * abs(18.0 - temp) / 60
         return carrot
@@ -109,8 +109,8 @@ class Brain:
 
     def modeling_NN(self):
         model = nn.Sequential()
-        model.add_module('fc1',nn.Linear(self.num_states,32))
-        model.add_module('relu1',nn.ReLU())
+        model.add_module('fc1', nn.Linear(self.num_states, 32))
+        model.add_module('relu1', nn.ReLU())
         model.add_module('fc2', nn.Linear(32, 32))
         model.add_module('relu2', nn.ReLU())
         model.add_module('fc2', nn.Linear(32, self.num_actions))
@@ -123,7 +123,55 @@ class Brain:
     def update_Q(self):
         data = agent.db.sampling(BATCH_SIZE)
         batch = DATA(*zip(*data))
-        print(batch)
+        state_serial = batch.state
+        action_serial = torch.cat(batch.action)
+        reward_serial = torch.cat(batch.reward)
+        next_state_serial = batch.next_state
+        done_serial = batch.done
+
+        update_input = np.zeros((BATCH_SIZE, self.num_states))
+        update_target = np.zeros((BATCH_SIZE, self.num_states))
+        action, reward, done = [], [], []
+
+        for i in range(BATCH_SIZE):
+            # state
+            update_input[i] = state_serial[i]
+            # action
+            action.append(action_serial[i])
+            # reward
+            reward.append(reward_serial[i])
+            # next_state
+            update_target[i] = next_state_serial[i]
+            # done
+            done.append(done_serial[i])
+
+        # 텐서형 통일
+        update_input = torch.from_numpy(update_input)
+        action = torch.tensor(action)
+        reward = torch.tensor(reward)
+        update_target = torch.from_numpy(update_target)
+        done = torch.tensor(done)
+
+        # Float형 통일 => 신경망 결과추출(y and y_hat)
+        Q_val = self.Q(update_input.float())
+        Target_Q_val = self.target_Q(update_target.float())
+
+        for i in range(BATCH_SIZE):
+            # Q Learning: get maximum Q value at s' from target model
+            if done[i]:
+                Q_val[i][action[i]] = reward[i]
+            else:
+                Q_val[i][action[i]] = reward[i] + DISCOUNT_FACTOR * max(Target_Q_val[i])
+
+        #훈련 모드
+        self.Q.train()
+        # 손실함수 계산
+        loss = F.smooth_l1_loss(update_input, Q_val)
+        # 가중치 수정
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        exit()
 
     def update_Target_Q(self):
         self.target_Q = self.Q
@@ -139,6 +187,8 @@ class Brain:
         else:
             '''For Exploration-탐험'''
             action = random.randrange(self.num_actions)
+        action = torch.tensor(action).view(1,1)
+        action = action.squeeze(1)
         return action
 
 class DB:
@@ -148,12 +198,12 @@ class DB:
         self.memory = []
         self.index = 0
 
-    def save_to_DB(self, state, action, reward, next_state):
+    def save_to_DB(self, state, action, reward, next_state, done):
 
         if(len(self.memory) < self.capacity):
             self.memory.append(None)
 
-        self.memory[self.index] = DATA(state, action, reward, next_state)
+        self.memory[self.index] = DATA(state, action, reward, next_state,done)
         self.index = (self.index+1) % self.capacity
 
     def sampling(self, batch_size):
@@ -162,7 +212,7 @@ class DB:
     def __len__(self):
         return len(self.memory)
 
-class Agent:#마무리
+class Agent:# 마무리
 
     def __init__(self):
         self.brain = Brain()
@@ -183,8 +233,8 @@ class Agent:#마무리
     def action_process(self,state,episode):
         return self.brain.action_order(state,episode)
 
-    def save_process(self,state,action,reward,next_state):
-        self.db.save_to_DB(state,action,reward,next_state)
+    def save_process(self,state,action,reward,next_state,done):
+        self.db.save_to_DB(state,action,reward,next_state,done)
 
 
 
@@ -198,7 +248,7 @@ if __name__ == '__main__':
         for S in range(MAX_STEPS):
             action = agent.action_process(state,E)
             next_state, reward, done = env.step(action)
-            agent.save_process(state,action,reward,next_state)
+            agent.save_process(state,action,reward,next_state,done)
             agent.update_Q_process()
             if done:
                 break
