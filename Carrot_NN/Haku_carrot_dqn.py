@@ -155,6 +155,7 @@ class Brain:
         # Float형 통일 => 신경망 결과추출(y and y_hat)
         Q_val = self.Q(update_input.float())
         Target_Q_val = self.target_Q(update_target.float())
+        Q_origin = Q_val.clone().detach()
 
         for i in range(BATCH_SIZE):
             # Q Learning: get maximum Q value at s' from target model
@@ -166,7 +167,7 @@ class Brain:
         #훈련 모드
         self.Q.train()
         # 손실함수 계산
-        loss = F.smooth_l1_loss(update_input, Q_val)
+        loss = F.smooth_l1_loss(Q_origin, Q_val)
         # 가중치 수정
         self.optimizer.zero_grad()
         loss.backward()
