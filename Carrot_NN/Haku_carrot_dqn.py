@@ -11,14 +11,14 @@ NUM_STATES = 3
 NUM_ACTIONS = 4
 DISCOUNT_FACTOR = 0.99
 LEARNING_RATE = 0.01
-EPSILON = 1.0
-EPSILON_DECAY = 0.999
-EPSILON_MIN = 0.01
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 TRAIN_START = 1000
 CAPACITY = 10000
 EPISODES = 1000
-MAX_STEPS = 500
+MAX_STEPS = 2000
+EPSILON = 1.0
+EPSILON_DISCOUNT_DACTOR = 0.001
+EPSILON_MIN = 0.01
 DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class Carrot_House  :  #  하우스 환경
@@ -64,7 +64,7 @@ class Carrot_House  :  #  하우스 환경
             reward = 1
 
         #종료여부
-        if self.Cumulative_Step == MAX_STEPS:
+        if self.Cumulative_Step <= MAX_STEPS-1:
             done = True
         elif self.Cumulative_Step > 0 and self.Carrot < 0.5:
             done = True
@@ -80,7 +80,7 @@ class Carrot_House  :  #  하우스 환경
         return next_state, reward, done
 
     def supply_water(self):
-        self.Humid = 7
+        self.Humid += 7
 
     def Temp_up(self):
         self.Temp += 1.0
@@ -92,12 +92,11 @@ class Carrot_House  :  #  하우스 환경
         return
 
     def HP_calculation(self, humid, temp):
-        #  온도에 대해서만 차이계산
+        '''#  온도에 대해서만 차이계산
         if humid > 0:
-            carrot = 1.0 - 0.5 * abs(18.0 - temp) / 60
-        #  전체 차이계산
-        else:
-            carrot = 0.5 - 0.5 * abs(18.0 - temp) / 60
+            carrot = 1.0 + 0.5 * abs(18.0 - temp) / 60'''
+        # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
+        carrot = (0.5 * abs(7 - humid) / 7) + (0.5 * abs(18.0 - temp) / 60)
         return carrot
 
     def reset(self):
@@ -119,7 +118,7 @@ class Brain:
         self.optimizer = None
         self.Q = None
         self.target_Q = None
-        self.epsilon = None
+        self.epsilon = EPSILON
 
     def modeling_NN(self):
         model = nn.Sequential()
@@ -194,7 +193,9 @@ class Brain:
         self.target_Q = copy.deepcopy(self.Q)
 
     def action_order(self, state, episode):
-        self.epsilon = 1 - 0.01 * episode
+        #최소 탐험성 확보
+        self.epsilon = EPSILON - EPSILON_DISCOUNT_DACTOR * episode if self.epsilon > EPSILON_MIN else EPSILON_MIN
+
         if self.epsilon <= np.random.uniform(0, 1):
             '''For Exploitation-이용'''
             self.Q.eval()
@@ -268,6 +269,7 @@ if __name__ == '__main__':
             agent.save_process(state, action, reward, next_state, done)
             agent.update_Q_process()
             if done:
+                print("final carrot_HP:", next_state[0],"  episode:", E, "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
                 break
             else:
                 score += reward
@@ -275,5 +277,4 @@ if __name__ == '__main__':
         agent.update_Target_Q_process()
         scores.append(score)
         episodes.append(E)
-        print("episode:", E, "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
     print('학습 완료')
