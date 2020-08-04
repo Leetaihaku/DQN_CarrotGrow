@@ -16,7 +16,7 @@ EPSILON_MIN = 0.01
 BATCH_SIZE = 32
 TRAIN_START = 1000
 CAPACITY = 10000
-EPISODES = 2
+EPISODES = 10
 MAX_STEPS = 300
 DATA = namedtuple('DATA',('state','action','reward','next_state','done'))
 
@@ -172,7 +172,6 @@ class Brain:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        exit()
 
     def update_Target_Q(self):
         self.target_Q = self.Q
@@ -260,3 +259,4 @@ if __name__ == '__main__':
         scores.append(score)
         episodes.append(E)
         print("episode:", E, "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
+    print('학습 완료')
