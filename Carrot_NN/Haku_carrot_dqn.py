@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import random
 import numpy as np
 from collections import namedtuple
+import copy
 
 NUM_STATES = 3
 NUM_ACTIONS = 4
@@ -16,9 +17,9 @@ EPSILON_MIN = 0.01
 BATCH_SIZE = 32
 TRAIN_START = 1000
 CAPACITY = 10000
-EPISODES = 10
-MAX_STEPS = 300
-DATA = namedtuple('DATA',('state','action','reward','next_state','done'))
+EPISODES = 1000
+MAX_STEPS = 500
+DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class Carrot_House  :  #  하우스 환경
 
@@ -31,32 +32,44 @@ class Carrot_House  :  #  하우스 환경
 
     def step(self, action):
         '''행동진행 => 환경결과'''
-        #  물주기
+        # 물주기
         if action == 0:
             self.supply_water()
-        #  온도 올리기
+        # 온도 올리기
         elif action == 1:
             self.Temp_up()
-        #  온도 내리기
+        # 온도 내리기
         elif action == 2:
             self.Temp_down()
-        #  현상유지
+        # 현상유지
         elif action == 3:
             self.Wait()
 
         self.Carrot = self.HP_calculation(self.Humid, self.Temp)
 
-        #  하루치 수분량 감쇄
+        # 하루치 수분량 감쇄
         self.Humid -= 1
 
-        #  종료여부
+        # 보상
+        if self.Carrot < 0.5:
+            '''그럴꺼면 하지마 수준'''
+            reward = -1
+        elif self.Carrot < 0.7 and self.Carrot >= 0.5:
+            '''얼추 키운 수준'''
+            reward = 0
+        elif self.Carrot < 0.9 and self.Carrot >= 0.7:
+            '''거즌 성공한 수준'''
+            reward = 0.5
+        elif self.Carrot >= 0.9:
+            reward = 1
+
+        #종료여부
         if self.Cumulative_Step == MAX_STEPS:
+            done = True
+        elif self.Cumulative_Step > 0 and self.Carrot < 0.5:
             done = True
         else:
             done = False
-
-        #  보상
-        reward = -0.001
 
         next_state = np.array([self.Carrot, self.Humid, self.Temp])
         next_state = torch.from_numpy(next_state)
@@ -95,6 +108,7 @@ class Carrot_House  :  #  하우스 환경
         init_state = np.array([init_carrot, init_humid, init_temp])
         init_state = torch.from_numpy(init_state)
         init_state = torch.squeeze(init_state, 1)
+        # Carrot, Humid, temp
         return init_state.float()
 
 class Brain:
@@ -117,7 +131,7 @@ class Brain:
         return model
 
     def modeling_OPTIM(self):
-        optimizer = torch.optim.RMSprop(self.Q.parameters(), lr=LEARNING_RATE)
+        optimizer = optim.RMSprop(self.Q.parameters(), lr=LEARNING_RATE)
         return optimizer
 
     def update_Q(self):
@@ -158,7 +172,7 @@ class Brain:
         Q_origin = Q_val.clone().detach()
 
         for i in range(BATCH_SIZE):
-            # Q Learning: get maximum Q value at s' from target model
+            # Q러닝
             if done[i]:
                 Q_val[i][action[i]] = reward[i]
             else:
@@ -168,16 +182,19 @@ class Brain:
         self.Q.train()
         # 손실함수 계산
         loss = F.smooth_l1_loss(Q_origin, Q_val)
-        # 가중치 수정
+        # 가중치 수정 프로세스
+        # 옵티마이저 클리너
         self.optimizer.zero_grad()
+        # 역전파 알고리즘
         loss.backward()
+        # 가중치 수정
         self.optimizer.step()
 
     def update_Target_Q(self):
-        self.target_Q = self.Q
+        self.target_Q = copy.deepcopy(self.Q)
 
-    def action_order(self,state,episode):
-        self.epsilon = 0.5 * (1 / (episode + 1))
+    def action_order(self, state, episode):
+        self.epsilon = 1 - 0.01 * episode
         if self.epsilon <= np.random.uniform(0, 1):
             '''For Exploitation-이용'''
             self.Q.eval()
@@ -246,9 +263,9 @@ if __name__ == '__main__':
         state = env.reset()
         score = 0
         for S in range(MAX_STEPS):
-            action = agent.action_process(state,E)
+            action = agent.action_process(state, E)
             next_state, reward, done = env.step(action)
-            agent.save_process(state,action,reward,next_state,done)
+            agent.save_process(state, action, reward, next_state, done)
             agent.update_Q_process()
             if done:
                 break
