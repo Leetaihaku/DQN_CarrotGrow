@@ -138,8 +138,7 @@ if __name__ == '__main__':
 #print(0.5-0.5*abs(18.0-30.0)/60)
 
 def fun(x):
-    return -1.15*pow(x,2)+41.4*x-1980
-
+    return 2.17*pow(x,2)+78.12*x-4297
 print(fun(18))
 
 
