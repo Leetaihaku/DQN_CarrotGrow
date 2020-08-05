@@ -10,105 +10,37 @@ import copy
 NUM_STATES = 3
 NUM_ACTIONS = 4
 DISCOUNT_FACTOR = 0.99
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.05
 BATCH_SIZE = 64
-TRAIN_START = 1000
+NODES = 32
+TRAIN_START = 2000
 CAPACITY = 10000
-EPISODES = 1000
-MAX_STEPS = 2000
+EPISODES = 20000
+MAX_STEPS = 200
 EPSILON = 1.0
-EPSILON_DISCOUNT_DACTOR = 0.001
-EPSILON_MIN = 0.01
+EPSILON_DISCOUNT_DACTOR = 0.0001
+EPSILON_MIN = 0.1
 DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
 
-class Carrot_House  :  #  하우스 환경
+class DB:
 
     def __init__(self):
-        '''하우스 환경 셋팅'''
-        self.Carrot = 0.0
-        self.Humid = 0
-        self.Temp = 0.0
-        self.Cumulative_Step = 0
+        self.capacity = CAPACITY
+        self.memory = []
+        self.index = 0
 
-    def step(self, action):
-        '''행동진행 => 환경결과'''
-        # 물주기
-        if action == 0:
-            self.supply_water()
-        # 온도 올리기
-        elif action == 1:
-            self.Temp_up()
-        # 온도 내리기
-        elif action == 2:
-            self.Temp_down()
-        # 현상유지
-        elif action == 3:
-            self.Wait()
+    def save_to_DB(self, state, action, reward, next_state, done):
+        if (len(self.memory) < self.capacity):
+            self.memory.append(None)
 
-        self.Carrot = self.HP_calculation(self.Humid, self.Temp)
+        self.memory[self.index] = DATA(state, action, reward, next_state, done)
+        self.index = (self.index + 1) % self.capacity
 
-        # 하루치 수분량 감쇄
-        self.Humid -= 1
+    def sampling(self, batch_size):
+        return random.sample(agent.db.memory, batch_size)
 
-        # 보상
-        if self.Carrot < 0.5:
-            '''그럴꺼면 하지마 수준'''
-            reward = -1
-        elif self.Carrot < 0.7 and self.Carrot >= 0.5:
-            '''얼추 키운 수준'''
-            reward = 0
-        elif self.Carrot < 0.9 and self.Carrot >= 0.7:
-            '''거즌 성공한 수준'''
-            reward = 0.5
-        elif self.Carrot >= 0.9:
-            reward = 1
-
-        #종료여부
-        if self.Cumulative_Step <= MAX_STEPS-1:
-            done = True
-        elif self.Cumulative_Step > 0 and self.Carrot < 0.5:
-            done = True
-        else:
-            done = False
-
-        next_state = np.array([self.Carrot, self.Humid, self.Temp])
-        next_state = torch.from_numpy(next_state)
-        next_state = next_state.float()
-        reward = np.array([reward])
-        reward = torch.from_numpy(reward)
-        reward = reward.float()
-        return next_state, reward, done
-
-    def supply_water(self):
-        self.Humid += 7
-
-    def Temp_up(self):
-        self.Temp += 1.0
-
-    def Temp_down(self):
-        self.Temp -= 1.0
-
-    def Wait(self):
-        return
-
-    def HP_calculation(self, humid, temp):
-        '''#  온도에 대해서만 차이계산
-        if humid > 0:
-            carrot = 1.0 + 0.5 * abs(18.0 - temp) / 60'''
-        # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
-        carrot = (0.5 - 0.5 * abs(7 - humid) / 7) + (0.5 - 0.5 * abs(18.0 - temp) / 60)
-        return carrot
-
-    def reset(self):
-        '''환경 초기화'''
-        init_carrot = np.array([0.0])
-        init_humid = np.random.uniform(low=0, high=7, size=1)
-        init_temp = np.random.uniform(low=-30.0, high=30.0, size=1)
-        init_state = np.array([init_carrot, init_humid, init_temp])
-        init_state = torch.from_numpy(init_state)
-        init_state = torch.squeeze(init_state, 1)
-        # Carrot, Humid, temp
-        return init_state.float()
+    def __len__(self):
+        return len(self.memory)
 
 class Brain:
 
@@ -122,11 +54,11 @@ class Brain:
 
     def modeling_NN(self):
         model = nn.Sequential()
-        model.add_module('fc1', nn.Linear(self.num_states, 32))
+        model.add_module('fc1', nn.Linear(self.num_states, NODES))
         model.add_module('relu1', nn.ReLU())
-        model.add_module('fc2', nn.Linear(32, 32))
+        model.add_module('fc2', nn.Linear(NODES, NODES))
         model.add_module('relu2', nn.ReLU())
-        model.add_module('fc2', nn.Linear(32, self.num_actions))
+        model.add_module('fc2', nn.Linear(NODES, self.num_actions))
         return model
 
     def modeling_OPTIM(self):
@@ -205,30 +137,9 @@ class Brain:
         else:
             '''For Exploration-탐험'''
             action = random.randrange(self.num_actions)
-        action = torch.tensor(action).view(1,1)
+        action = torch.tensor(action).view(1, 1)
         action = action.squeeze(1)
         return action
-
-class DB:
-
-    def __init__(self):
-        self.capacity = CAPACITY
-        self.memory = []
-        self.index = 0
-
-    def save_to_DB(self, state, action, reward, next_state, done):
-
-        if(len(self.memory) < self.capacity):
-            self.memory.append(None)
-
-        self.memory[self.index] = DATA(state, action, reward, next_state,done)
-        self.index = (self.index+1) % self.capacity
-
-    def sampling(self, batch_size):
-        return random.sample(agent.db.memory, batch_size)
-
-    def __len__(self):
-        return len(self.memory)
 
 class Agent:# 마무리
 
@@ -248,13 +159,125 @@ class Agent:# 마무리
     def update_Target_Q_process(self):
         self.brain.update_Target_Q()
 
-    def action_process(self,state,episode):
-        return self.brain.action_order(state,episode)
+    def action_process(self, state, episode):
+        return self.brain.action_order(state, episode)
 
-    def save_process(self,state,action,reward,next_state,done):
-        self.db.save_to_DB(state,action,reward,next_state,done)
+    def save_process(self, state, action, reward, next_state, done):
+        self.db.save_to_DB(state, action, reward, next_state, done)
 
+class Carrot_House  :  #  하우스 환경
 
+    def __init__(self):
+        '''하우스 환경 셋팅'''
+        self.Carrot = 0.0
+        self.Humid = 0
+        self.Temp = 0.0
+        self.Cumulative_Step = 0
+
+    def supply_water(self):
+        self.Humid += 7
+
+    def Temp_up(self):
+        self.Temp += 5.0
+
+    def Temp_down(self):
+        self.Temp -= 5.0
+
+    def Wait(self):
+        return
+
+    def Humid_calculation(self):
+        # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
+        if self.Humid <= 9 and self.Humid > 1:
+            return 0.5
+        elif self.Humid <= 2 and self.Humid > 0:
+            return 0.2
+        else:
+            return -0.5
+
+    def Temp_calculation(self):
+        gab = abs(18.0 - self.Temp)
+        if gab < 2:
+            return 0.5
+        elif gab < 6 and gab >= 2:
+            return 0.3
+        elif gab < 12 and gab >= 6:
+            return 0.1
+        elif gab < 20 and gab >= 12:
+            return -0.1
+        elif gab < 30 and gab >= 20:
+            return -0.2
+        else:
+            return -0.5
+
+    def step(self, action):
+        '''행동진행 => 환경결과'''
+        #스텝변수++
+        self.Cumulative_Step += 1
+        # 물주기
+        if action == 0:
+            self.supply_water()
+        # 온도 올리기
+        elif action == 1:
+            self.Temp_up()
+        # 온도 내리기
+        elif action == 2:
+            self.Temp_down()
+        # 현상유지
+        elif action == 3:
+            self.Wait()
+
+        self.Carrot = self.Humid_calculation() + self.Temp_calculation()
+
+        # 보상
+        if self.Carrot < 0.2:
+            '''그럴꺼면 하지마 수준'''
+            reward = -1
+        elif self.Carrot < 0.5 and self.Carrot >= 0.2:
+            '''얼추 키운 수준'''
+            reward = 0
+        elif self.Carrot < 0.7 and self.Carrot >= 0.5:
+            '''거즌 성공한 수준'''
+            reward = 0.5
+        elif self.Carrot >= 0.7:
+            reward = 1
+
+        #종료여부
+        if self.Carrot < -0.5:
+            print('★★★당근 사망으로 인한 종료★★★')
+            done = True
+        else:
+            done = False
+
+        next_state = np.array([self.Carrot, self.Humid, self.Temp])
+        next_state = torch.from_numpy(next_state)
+        next_state = next_state.float()
+        reward = np.array([reward])
+        reward = torch.from_numpy(reward)
+        reward = reward.float()
+
+        # 수분량 감소, 온도 변동
+        self.Humid -= 1
+        #self.Temp += random.randint(-1, 1)
+
+        return next_state, reward, done
+
+    def reset(self):
+        '''환경 초기화'''
+        self.Carrot = 0.0
+        self.Humid = 0
+        self.Temp = 0.0
+        self.Cumulative_Step = 0
+        init_carrot = np.array([0.0])
+        init_humid = np.array([0.0])
+        init_temp = np.array([0.0])
+        #init_humid = np.random.uniform(low=0.0, high=7.0, size=1)
+        #init_temp = np.random.uniform(low=0.0, high=36.0, size=1)
+        init_state = np.array([init_carrot, init_humid, init_temp])
+        init_state = torch.from_numpy(init_state)
+        init_state = torch.squeeze(init_state, 1)
+        # Carrot, Humid, temp
+        return init_state.float()
 
 if __name__ == '__main__':
     env = Carrot_House()
@@ -264,13 +287,19 @@ if __name__ == '__main__':
         state = env.reset()
         score = 0
         for S in range(MAX_STEPS):
+            print('step', S)
+            print('state', state)
             action = agent.action_process(state, E)
+            print('action', action)
             next_state, reward, done = env.step(action)
             agent.save_process(state, action, reward, next_state, done)
             agent.update_Q_process()
             if done:
-                print("final carrot_HP:", next_state[0],"  episode:", E, "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
+                print("final carrot_HP:", next_state[0], "  step", S, "  episode:", E,
+                      "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
                 break
+            elif S == MAX_STEPS-1:
+                print('★★★성공한 훈련★★★')
             else:
                 score += reward
                 state = next_state

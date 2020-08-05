@@ -135,11 +135,15 @@ if __name__ == '__main__':
     print(state)
 '''
 
-#print(0.5-0.5*abs(18.0-30.0)/60)
 
-def fun(x):
-    return 2.17*pow(x,2)+78.12*x-4297
-print(fun(18))
+def HP_calculation(humid, temp):
+    # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
+    carrot = (0.5 - 0.5 * abs(7 - humid) / 7) + Temp_calculation()
+    return carrot
 
 
+def Temp_calculation(x):
+    return
 
+if __name__ == '__main__':
+    print(Temp_calculation(18))
