@@ -96,7 +96,7 @@ class Carrot_House  :  #  하우스 환경
         if humid > 0:
             carrot = 1.0 + 0.5 * abs(18.0 - temp) / 60'''
         # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
-        carrot = (0.5 * abs(7 - humid) / 7) + (0.5 * abs(18.0 - temp) / 60)
+        carrot = (0.5 - 0.5 * abs(7 - humid) / 7) + (0.5 - 0.5 * abs(18.0 - temp) / 60)
         return carrot
 
     def reset(self):

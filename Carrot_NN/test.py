@@ -118,7 +118,7 @@ c.append(b)
 print(c)
 print(torch.tensor([a]))
 '''
-
+'''
 import sys
 import gym
 import pylab
@@ -133,5 +133,14 @@ if __name__ == '__main__':
     env = gym.make('CartPole-v1')
     state = env.reset()
     print(state)
+'''
+
+#print(0.5-0.5*abs(18.0-30.0)/60)
+
+def fun(x):
+    return -1.15*pow(x,2)+41.4*x-1980
+
+print(fun(18))
+
 
 
