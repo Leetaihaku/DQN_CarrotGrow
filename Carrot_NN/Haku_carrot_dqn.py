@@ -15,7 +15,7 @@ BATCH_SIZE = 64
 NODES = 32
 TRAIN_START = 2000
 CAPACITY = 10000
-EPISODES = 20000
+EPISODES = 10000
 MAX_STEPS = 200
 EPSILON = 1.0
 EPSILON_DISCOUNT_DACTOR = 0.0001
@@ -173,42 +173,39 @@ class Carrot_House  :  #  하우스 환경
         self.Humid = 0
         self.Temp = 0.0
         self.Cumulative_Step = 0
+        #self.Humid_limit = -2.0
+        #self.Temp_limit = -1.0
+        #self.Halt_signal = False
 
     def supply_water(self):
         self.Humid += 7
 
     def Temp_up(self):
-        self.Temp += 5.0
+        self.Temp += 3.0
 
     def Temp_down(self):
-        self.Temp -= 5.0
+        self.Temp -= 3.0
 
     def Wait(self):
         return
 
     def Humid_calculation(self):
         # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
-        if self.Humid <= 9 and self.Humid > 1:
-            return 0.5
-        elif self.Humid <= 2 and self.Humid > 0:
-            return 0.2
+        if self.Humid <= 9 and self.Humid > 2:
+            return 1.0
+        elif self.Humid <= 2 and self.Humid >= 0:
+            return 0.0
         else:
-            return -0.5
+            return -1.0
 
     def Temp_calculation(self):
         gab = abs(18.0 - self.Temp)
-        if gab < 2:
-            return 0.5
-        elif gab < 6 and gab >= 2:
-            return 0.3
-        elif gab < 12 and gab >= 6:
-            return 0.1
-        elif gab < 20 and gab >= 12:
-            return -0.1
-        elif gab < 30 and gab >= 20:
-            return -0.2
+        if gab <= 3:
+            return 1.0
+        elif gab <= 6 and gab > 3:
+            return 0.0
         else:
-            return -0.5
+            return -1.0
 
     def step(self, action):
         '''행동진행 => 환경결과'''
@@ -227,24 +224,21 @@ class Carrot_House  :  #  하우스 환경
         elif action == 3:
             self.Wait()
 
+        #당근체력
         self.Carrot = self.Humid_calculation() + self.Temp_calculation()
-
-        # 보상
-        if self.Carrot < 0.2:
-            '''그럴꺼면 하지마 수준'''
-            reward = -1
-        elif self.Carrot < 0.5 and self.Carrot >= 0.2:
-            '''얼추 키운 수준'''
-            reward = 0
-        elif self.Carrot < 0.7 and self.Carrot >= 0.5:
-            '''거즌 성공한 수준'''
-            reward = 0.5
-        elif self.Carrot >= 0.7:
+        #보상
+        if self.Carrot == 2:
             reward = 1
-
+        if self.Carrot == 1:
+            reward = 0.5
+        if self.Carrot == 0:
+            reward = 0
+        if self.Carrot == -1:
+            reward = -0.5
+        if self.Carrot == -2:
+            reward = -1
         #종료여부
-        if self.Carrot < -0.5:
-            print('★★★당근 사망으로 인한 종료★★★')
+        if reward == -1:
             done = True
         else:
             done = False

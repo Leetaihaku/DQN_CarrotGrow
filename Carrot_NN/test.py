@@ -133,7 +133,40 @@ if __name__ == '__main__':
     env = gym.make('CartPole-v1')
     state = env.reset()
     print(state)
+    
 '''
+'''if self.Carrot < -2.0:
+            
+            reward = -2.0
+        elif self.Carrot >= -2.0 and self.Carrot < -1.6:
+            
+            reward = -1.6
+        elif self.Carrot >= -1.6 and self.Carrot < -1.2:
+            
+            reward = -1.2
+        elif self.Carrot >= -1.2 and self.Carrot < -0.8:
+            
+            reward = -0.8
+        elif self.Carrot >= -0.8 and self.Carrot < -0.4:
+            
+            reward = -0.4
+        elif self.Carrot >= -0.4 and self.Carrot < 0.4:
+            
+            reward = 0.0
+        elif self.Carrot >= 0.4 and self.Carrot < 0.8:
+            
+            reward = 0.4
+        elif self.Carrot >= 0.8 and self.Carrot < 1.2:
+            
+            reward = 1.4
+        elif self.Carrot >= 1.2 and self.Carrot < 1.6:
+            
+            reward = 1.6
+        elif self.Carrot >= 1.6 and self.Carrot < 2.0:
+            
+            reward = 1.8
+        elif self.Carrot == 2.0:
+            reward = 2.0'''
 
 
 def HP_calculation(humid, temp):
