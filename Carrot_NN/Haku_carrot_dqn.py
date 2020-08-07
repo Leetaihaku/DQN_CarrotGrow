@@ -10,12 +10,12 @@ import copy
 NUM_STATES = 3
 NUM_ACTIONS = 4
 DISCOUNT_FACTOR = 0.99
-LEARNING_RATE = 0.05
-BATCH_SIZE = 64
+LEARNING_RATE = 0.1
+BATCH_SIZE = 256
 NODES = 32
-TRAIN_START = 2000
-CAPACITY = 10000
-EPISODES = 10000
+TRAIN_START = 1000
+CAPACITY = 1000
+EPISODES = 15000
 MAX_STEPS = 200
 EPSILON = 1.0
 EPSILON_DISCOUNT_DACTOR = 0.0001
@@ -173,44 +173,57 @@ class Carrot_House  :  #  하우스 환경
         self.Humid = 0
         self.Temp = 0.0
         self.Cumulative_Step = 0
-        #self.Humid_limit = -2.0
-        #self.Temp_limit = -1.0
-        #self.Halt_signal = False
 
     def supply_water(self):
         self.Humid += 7
 
     def Temp_up(self):
-        self.Temp += 3.0
+        self.Temp += 5.0
 
     def Temp_down(self):
-        self.Temp -= 3.0
+        self.Temp -= 5.0
 
     def Wait(self):
         return
 
     def Humid_calculation(self):
-        # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
-        if self.Humid <= 9 and self.Humid > 2:
-            return 1.0
-        elif self.Humid <= 2 and self.Humid >= 0:
+        if self.Humid <= 9 and self.Humid > 6:
+            return 0.5
+        elif self.Humid<= 6 and self.Humid > 4:
+            return 0.25
+        elif self.Humid <= 4 and self.Humid > 2:
             return 0.0
+        elif self.Humid <= 2 and self.Humid > 0:
+            return -0.25
         else:
-            return -1.0
+            return -0.5
 
-    def Temp_calculation(self):
-        gab = abs(18.0 - self.Temp)
-        if gab <= 3:
-            return 1.0
-        elif gab <= 6 and gab > 3:
-            return 0.0
+    def Temp_calculation(self, pre_temp):
+        gap = abs(18.0 - self.Temp)
+        pre_gap = abs(18.0 - pre_temp)
+
+        # 온도 조정없이 오차범위 2도씨 이내
+        if gap == pre_gap and gap <= 2:
+            return 0.5
+        # 온도 조정없이 오차범위 2도씨 이외(나태 패널티)
+        if gap == pre_gap and gap > 2:
+            return -0.25
+        # 발전
+        elif gap < pre_gap:
+            return 0.25
+        # 후퇴
+        elif gap > pre_gap:
+            return -0.5
         else:
-            return -1.0
+            print('온도계산이상')
 
     def step(self, action):
         '''행동진행 => 환경결과'''
         #스텝변수++
         self.Cumulative_Step += 1
+        #이전온도 => 보상계산에 사용
+        pre_temp = self.Temp
+
         # 물주기
         if action == 0:
             self.supply_water()
@@ -225,20 +238,28 @@ class Carrot_House  :  #  하우스 환경
             self.Wait()
 
         #당근체력
-        self.Carrot = self.Humid_calculation() + self.Temp_calculation()
+        self.Carrot = self.Humid_calculation() + self.Temp_calculation(pre_temp)
+
         #보상
-        if self.Carrot == 2:
+        if self.Carrot >= 0.75:
             reward = 1
-        if self.Carrot == 1:
+        elif self.Carrot >= 0.25 and self.Carrot < 0.75:
             reward = 0.5
-        if self.Carrot == 0:
+        elif self.Carrot >= -0.25 and self.Carrot < 0.25:
             reward = 0
-        if self.Carrot == -1:
+        elif self.Carrot >= -0.75 and self.Carrot < -0.25:
             reward = -0.5
-        if self.Carrot == -2:
+        elif self.Carrot >= -1 and self.Carrot < -0.75:
             reward = -1
-        #종료여부
-        if reward == -1:
+        else:
+            print('보상할당오류', self.Carrot)
+            
+        #정류제재
+        if self.Carrot < 0.5 and action == 3:
+            reward -= 0.5
+
+        #종료조건
+        if reward <= -1:
             done = True
         else:
             done = False
@@ -251,7 +272,10 @@ class Carrot_House  :  #  하우스 환경
         reward = reward.float()
 
         # 수분량 감소, 온도 변동
-        self.Humid -= 1
+        if self.Humid > 0:
+            self.Humid -= 1
+        else:
+            self.Humid = 0
         #self.Temp += random.randint(-1, 1)
 
         return next_state, reward, done
@@ -287,7 +311,8 @@ if __name__ == '__main__':
             print('action', action)
             next_state, reward, done = env.step(action)
             agent.save_process(state, action, reward, next_state, done)
-            agent.update_Q_process()
+            if E > TRAIN_START:
+                agent.update_Q_process()
             if done:
                 print("final carrot_HP:", next_state[0], "  step", S, "  episode:", E,
                       "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
