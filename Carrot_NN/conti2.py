@@ -20,7 +20,7 @@ MAX_STEPS = 200
 EPSILON = 1.0
 EPSILON_DISCOUNT_DACTOR = 0.0001
 EPSILON_MIN = 0.1
-PATH = '.\saved_model\Carrot_Q.pth'
+PATH = '.\saved_model\Carrot_Q2.pth'
 DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
 
 
@@ -220,8 +220,10 @@ class Carrot_House:  # 하우스 환경
                 reward = -1
             elif self.Humid >= 7 and self.Humid <= 9:
                 reward = 0.5
-            else:
+            elif abs(18.0 - self.Temp) == abs(18.0 - pre_temp) and self.Temp != 18.0:
                 reward = -0.5
+            else:
+                reward = 0.0
         else:
             reward = -1
 
