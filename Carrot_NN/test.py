@@ -24,6 +24,6 @@ Q.load_state_dict(torch.load(PATH))
 
 Q.eval()
 
-print(Q(torch.squeeze(torch.tensor([1.0,30.0]))))
+print(Q(torch.squeeze(torch.tensor([1,1]))))
 
 
