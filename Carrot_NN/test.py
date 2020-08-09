@@ -1,16 +1,16 @@
-'''''''''import torch
+import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
 import numpy as np
 from collections import namedtuple
 import random
-
+'''
 num_states = 3
 num_actions = 4
-learning_rate = 0.01
+learning_rate = 0.01'''
 
-
+'''
 
 model = nn.Sequential()
 model.add_module('fc1', nn.Linear(num_states, 32))
@@ -168,7 +168,7 @@ if __name__ == '__main__':
         elif self.Carrot == 2.0:
             reward = 2.0'''
 
-
+'''
 def HP_calculation(humid, temp):
     # 당근 체력 = 수분량 적정도 50% + 온도 적정도 50%
     carrot = (0.5 - 0.5 * abs(7 - humid) / 7) + Temp_calculation()
@@ -179,4 +179,18 @@ def Temp_calculation(x):
     return
 
 if __name__ == '__main__':
-    print(Temp_calculation(18))
+    print(Temp_calculation(18))'''
+
+'''a = np.array([1, 2, 3, 4])
+b = np.array([1, 2, 3, 4])
+a = torch.from_numpy(a).float()
+b = torch.from_numpy(b).float()
+ab = a+b
+ab = torch.tensor().stack()
+print(a.max(1)[0])'''
+
+done = torch.tensor([[True],
+                     [False]])
+print(done)
+
+print(~done)
