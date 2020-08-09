@@ -12,7 +12,7 @@ NUM_ACTIONS = 4
 DISCOUNT_FACTOR = 0.99
 LEARNING_RATE = 0.01
 BATCH_SIZE = 256
-NODES = 16
+NODES = 24
 TRAIN_START = 1000
 CAPACITY = 10000
 EPISODES = 10000
@@ -20,7 +20,7 @@ MAX_STEPS = 200
 EPSILON = 1.0
 EPSILON_DISCOUNT_FACTOR = 0.0001
 EPSILON_MIN = 0.01
-PATH = '.\saved_model\Carrot_Q3.pth'
+PATH = '.\saved_model\Beta-17.pth'
 DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class DB:
@@ -60,7 +60,7 @@ class Brain:
         model.add_module('relu1', nn.ReLU())
         model.add_module('fc2', nn.Linear(NODES, NODES))
         model.add_module('relu2', nn.ReLU())
-        model.add_module('fc2', nn.Linear(NODES, self.num_actions))
+        model.add_module('fc3', nn.Linear(NODES, self.num_actions))
         return model
 
     def modeling_OPTIM(self):
@@ -158,10 +158,10 @@ class Carrot_House:  # 하우스 환경
         self.Humid += 7
 
     def Temp_up(self):
-        self.Temp += 3.0
+        self.Temp += 1.0
 
     def Temp_down(self):
-        self.Temp -= 3.0
+        self.Temp -= 1.0
 
     def Wait(self):
         return
@@ -187,15 +187,17 @@ class Carrot_House:  # 하우스 환경
             self.Wait()
 
         # 보상
-        if self.Humid != 0 and self.Humid <= 9:
-            if abs(18.0-self.Temp) < abs(18.0-pre_temp):
+        if self.Humid > 0 and self.Humid <= 7:
+            if self.Temp <= 0:
+                reward = -0.5
+            elif abs(18.0-self.Temp) < abs(18.0-pre_temp):
                 reward = 0.5
             elif abs(18.0-self.Temp) == abs(18.0-pre_temp) and self.Temp == 18.0:
                 reward = 1
             elif abs(18.0-self.Temp) > abs(18.0-pre_temp):
-                reward = -1
-            elif self.Humid >= 7 and self.Humid <= 9:
-                reward = 0.5
+                reward = -0.5
+            elif self.Humid == 7:
+                reward = 1
             elif abs(18.0 - self.Temp) == abs(18.0 - pre_temp) and self.Temp != 18.0:
                 reward = -0.5
             else:
@@ -234,11 +236,11 @@ class Carrot_House:  # 하우스 환경
         self.Temp = 0.0
         self.Cumulative = 0
 
-        init_humid = np.array([0.0])
-        init_temp = np.array([0.0])
+        init_humid = np.random.randint(low=0,high=7)
+        init_temp = np.random.randint(low=0,high=36)
         init_state = np.array([init_humid, init_temp])
         init_state = torch.from_numpy(init_state)
-        init_state = torch.squeeze(init_state, 1)
+        init_state = torch.squeeze(init_state)
         # Humid, temp
         return init_state.float()
 

@@ -20,7 +20,7 @@ MAX_STEPS = 200
 EPSILON = 1.0
 EPSILON_DISCOUNT_FACTOR = 0.0001
 EPSILON_MIN = 0.01
-PATH = '.\saved_model\Carrot_Q3.pth'
+PATH = '.\saved_model\Beta.pth'
 DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
 
 
@@ -61,7 +61,7 @@ class Brain:
         model.add_module('relu1', nn.ReLU())
         model.add_module('fc2', nn.Linear(NODES, NODES))
         model.add_module('relu2', nn.ReLU())
-        model.add_module('fc2', nn.Linear(NODES, self.num_actions))
+        model.add_module('fc3', nn.Linear(NODES, self.num_actions))
         return model
 
     def modeling_OPTIM(self):
@@ -247,12 +247,12 @@ class Carrot_House:  # 하우스 환경
 
 env = Carrot_House()
 agent = Agent()
-print('이전 학습을 이어나가시겠습니까?')
-print('Y(이어하기) / N(모델 생성)')
-answer = input()
-if answer == 'y' or answer == 'Y':
-    agent.brain.Q.load_state_dict(torch.load(PATH))
-    agent.brain.target_Q = copy.deepcopy(agent.brain.Q)
+#print('이전 학습을 이어나가시겠습니까?')
+#print('Y(이어하기) / N(모델 생성)')
+#answer = input()
+#if answer == 'y' or answer == 'Y':
+#    agent.brain.Q.load_state_dict(torch.load(PATH))
+#    agent.brain.target_Q = copy.deepcopy(agent.brain.Q)
 scores, episodes = [], []
 for E in range(EPISODES):
     state = env.reset()
