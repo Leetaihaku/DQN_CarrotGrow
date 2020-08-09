@@ -103,7 +103,7 @@ class Brain:
     def update_Target_Q(self):
         self.target_Q = copy.deepcopy(self.Q)
 
-    def action_order(self, state, episode):
+    def action_order(self, state):
         '''Exploitation-이용'''
         self.Q.eval()
         with torch.no_grad():
@@ -131,8 +131,8 @@ class Agent:
     def update_Target_Q_process(self):
         self.brain.update_Target_Q()
 
-    def action_process(self, state, episode):
-        return self.brain.action_order(state, episode)
+    def action_process(self, state):
+        return self.brain.action_order(state)
 
     def save_process(self, state, action, reward, next_state, done):
         self.db.save_to_DB(state, action, reward, next_state, done)
@@ -148,19 +148,19 @@ class Carrot_House:
         self.Pre_temp = 0
         self.Cumulative = 0
 
-    def Supply_water(self):
+    def supply_water(self):
         self.Humid += 7
 
-    def Temp_up(self):
+    def temp_up(self):
         self.Temp += 1
 
-    def Temp_down(self):
+    def temp_down(self):
         self.Temp -= 1
 
-    def Wait(self):
+    def wait(self):
         return
 
-    def Pre_step(self):
+    def pre_step(self):
         # 스텝
         self.Cumulative += 1
         # 직전온도
@@ -172,26 +172,27 @@ class Carrot_House:
             self.Humid = 0
         # self.Temp += random.randint(-1, 1)
 
-    def Step(self, action):
+    def step(self, action):
         '''행동진행 => 환경결과'''
+
         #스텝환경 셋팅
-        self.Pre_step()
+        self.pre_step()
 
         # 물주기
         if action == 0:
-            self.Supply_water()
+            self.supply_water()
         # 온도 올리기
         elif action == 1:
-            self.Temp_up()
+            self.temp_up()
         # 온도 내리기
         elif action == 2:
-            self.Temp_down()
+            self.temp_down()
         # 현상유지
         elif action == 3:
-            self.Wait()
+            self.wait()
 
         # 보상
-        reward = self.Get_reward()
+        reward = self.get_reward()
 
         # 종료조건
         if reward == -1:
@@ -201,16 +202,12 @@ class Carrot_House:
         else:
             done = False
 
-        next_state = np.array([self.Humid, self.Temp])
-        next_state = torch.from_numpy(next_state)
-        next_state = next_state.float()
-        reward = np.array([reward])
-        reward = torch.from_numpy(reward)
-        reward = reward.float()
+        next_state = torch.tensor([self.Humid, self.Temp]).float()
+        reward = torch.tensor([reward]).float()
 
         return next_state, reward, done
 
-    def Get_reward(self):
+    def get_reward(self):
 
         if self.Humid > 0 and self.Humid <= 7:
             if self.Temp <= 0:
@@ -238,11 +235,8 @@ class Carrot_House:
         init_temp = np.random.randint(low=0, high=36)
         self.Humid = init_humid
         self.Temp = init_temp
-        init_state = np.array([init_humid, init_temp])
-        init_state = torch.from_numpy(init_state)
-        init_state = torch.squeeze(init_state)
+        init_state = torch.tensor([init_humid, init_temp])
 
-        # Humid, temp
         return init_state.float()
 
 
@@ -257,8 +251,9 @@ if __name__ == '__main__':
         score = 0
         for S in range(MAX_STEPS):
             print(S)
-            action = agent.action_process(state, E)
-            next_state, reward, done = env.Step(action)
+            print(state)
+            action = agent.action_process(state)
+            next_state, reward, done = env.step(action)
             if done:
                 print("step", S, "  episode:", E,
                       "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)

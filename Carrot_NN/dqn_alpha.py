@@ -12,7 +12,7 @@ NUM_ACTIONS = 4
 DISCOUNT_FACTOR = 0.99
 LEARNING_RATE = 0.01
 BATCH_SIZE = 256
-NODES = 24
+NODES = 16
 TRAIN_START = 1000
 CAPACITY = 10000
 EPISODES = 10000
@@ -20,8 +20,9 @@ MAX_STEPS = 200
 EPSILON = 1.0
 EPSILON_DISCOUNT_FACTOR = 0.0001
 EPSILON_MIN = 0.01
-PATH = '.\saved_model\Beta-17.pth'
+PATH = '.\saved_model\Beta.pth'
 DATA = namedtuple('DATA', ('state', 'action', 'reward', 'next_state', 'done'))
+
 
 class DB:
 
@@ -71,7 +72,7 @@ class Brain:
         data = agent.db.sampling(BATCH_SIZE)
         batch = DATA(*zip(*data))
         state_serial = batch.state
-        action_serial = torch.cat(batch.action).reshape(-1,1)
+        action_serial = torch.cat(batch.action).reshape(-1, 1)
         reward_serial = torch.cat(batch.reward)
         next_state_serial = batch.next_state
         done_serial = batch.done
@@ -79,16 +80,16 @@ class Brain:
         state_serial = torch.stack(state_serial)
         next_state_serial = torch.stack(next_state_serial)
         done_serial = torch.tensor(done_serial)
-        
-        #print(self.Q[0].weight)
+
+        # print(self.Q[0].weight)
 
         # Float형 통일 => 신경망 결과추출(y and y_hat)
         Q_val = self.Q(state_serial)
-        Q_val = Q_val.gather(1,action_serial)
+        Q_val = Q_val.gather(1, action_serial)
         Target_Q_val = self.target_Q(next_state_serial).max(1)[0]
         Target_Q_val = reward_serial + DISCOUNT_FACTOR * (~done_serial) * Target_Q_val
-        Target_Q_val = Target_Q_val.reshape(-1,1)
-        
+        Target_Q_val = Target_Q_val.reshape(-1, 1)
+
         # 훈련 모드
         self.Q.train()
         # 손실함수 계산
@@ -100,6 +101,7 @@ class Brain:
         loss.backward()
         # 가중치 수정
         self.optimizer.step()
+
     def update_Target_Q(self):
         self.target_Q = copy.deepcopy(self.Q)
 
@@ -158,17 +160,17 @@ class Carrot_House:  # 하우스 환경
         self.Humid += 7
 
     def Temp_up(self):
-        self.Temp += 1.0
+        self.Temp += 3.0
 
     def Temp_down(self):
-        self.Temp -= 1.0
+        self.Temp -= 3.0
 
     def Wait(self):
         return
 
     def step(self, action):
         '''행동진행 => 환경결과'''
-        #스텝
+        # 스텝
         self.Cumulative += 1
         # 직전온도
         pre_temp = self.Temp
@@ -187,17 +189,15 @@ class Carrot_House:  # 하우스 환경
             self.Wait()
 
         # 보상
-        if self.Humid > 0 and self.Humid <= 7:
-            if self.Temp <= 0:
-                reward = -0.5
-            elif abs(18.0-self.Temp) < abs(18.0-pre_temp):
+        if self.Humid != 0 and self.Humid <= 9:
+            if abs(18.0 - self.Temp) < abs(18.0 - pre_temp):
                 reward = 0.5
-            elif abs(18.0-self.Temp) == abs(18.0-pre_temp) and self.Temp == 18.0:
+            elif abs(18.0 - self.Temp) == abs(18.0 - pre_temp) and self.Temp == 18.0:
                 reward = 1
-            elif abs(18.0-self.Temp) > abs(18.0-pre_temp):
-                reward = -0.5
-            elif self.Humid == 7:
-                reward = 1
+            elif abs(18.0 - self.Temp) > abs(18.0 - pre_temp):
+                reward = -1
+            elif self.Humid >= 7 and self.Humid <= 9:
+                reward = 0.5
             elif abs(18.0 - self.Temp) == abs(18.0 - pre_temp) and self.Temp != 18.0:
                 reward = -0.5
             else:
@@ -236,39 +236,39 @@ class Carrot_House:  # 하우스 환경
         self.Temp = 0.0
         self.Cumulative = 0
 
-        init_humid = np.random.randint(low=0,high=7)
-        init_temp = np.random.randint(low=0,high=36)
+        init_humid = np.array([0.0])
+        init_temp = np.array([0.0])
         init_state = np.array([init_humid, init_temp])
         init_state = torch.from_numpy(init_state)
-        init_state = torch.squeeze(init_state)
+        init_state = torch.squeeze(init_state, 1)
         # Humid, temp
         return init_state.float()
 
 
 env = Carrot_House()
 agent = Agent()
-print('이전 학습을 이어나가시겠습니까?')
-print('Y(이어하기) / N(모델 생성)')
-answer = input()
-if answer == 'y' or answer == 'Y':
-    agent.brain.Q.load_state_dict(torch.load(PATH))
-    agent.brain.target_Q = copy.deepcopy(agent.brain.Q)
+#print('이전 학습을 이어나가시겠습니까?')
+#print('Y(이어하기) / N(모델 생성)')
+#answer = input()
+#if answer == 'y' or answer == 'Y':
+#    agent.brain.Q.load_state_dict(torch.load(PATH))
+#    agent.brain.target_Q = copy.deepcopy(agent.brain.Q)
 scores, episodes = [], []
 for E in range(EPISODES):
     state = env.reset()
     score = 0
     for S in range(MAX_STEPS):
-        #print('step', S)
-        #print('state', state)
+        # print('step', S)
+        # print('state', state)
         action = agent.action_process(state, E)
-        #print('action', action)
+        # print('action', action)
         next_state, reward, done = env.step(action)
         agent.save_process(state, action, reward, next_state, done)
         if E > TRAIN_START:
             agent.update_Q_process()
             torch.save(agent.brain.Q.state_dict(), PATH)
         if done:
-            #print('★★★★★★★★★★★★★★★★★★★★★')
+            # print('★★★★★★★★★★★★★★★★★★★★★')
             print("step", S, "  episode:", E,
                   "  score:", score, "  memory length:", len(agent.db.memory), "  epsilon:", agent.brain.epsilon)
             break
@@ -281,11 +281,11 @@ for E in range(EPISODES):
 print('학습 완료')
 agent.brain.Q.eval()
 print('초기상태 Q')
-print(agent.brain.Q(torch.squeeze(torch.tensor([0.0,0.0]))))
+print(agent.brain.Q(torch.squeeze(torch.tensor([0.0, 0.0]))))
 print('급수직후 Q')
-print(agent.brain.Q(torch.squeeze(torch.tensor([7.0,0.0]))))
+print(agent.brain.Q(torch.squeeze(torch.tensor([7.0, 0.0]))))
 print('기온상승직후 Q')
-print(agent.brain.Q(torch.squeeze(torch.tensor([0.0,3.0]))))
+print(agent.brain.Q(torch.squeeze(torch.tensor([0.0, 3.0]))))
 
 print('모델을 저장하시겠습니까 ?')
 print('Y / N')
@@ -293,5 +293,3 @@ answer = input()
 
 if answer == 'y' or answer == 'Y':
     torch.save(agent.brain.Q.state_dict(), PATH)
-
-
