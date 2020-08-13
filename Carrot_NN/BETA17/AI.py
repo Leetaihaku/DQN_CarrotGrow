@@ -6,8 +6,7 @@ from Hyperparams import EPISODES
 from Hyperparams import MAX_STEPS
 
 
-
-if __name__ == '__main__':
+'''if __name__ == '__main__':
     env = Carrot_House()
     agent = Agent()
     agent.brain.Q.load_state_dict(torch.load(PATH))
@@ -27,4 +26,13 @@ if __name__ == '__main__':
             else:
                 score += reward
                 state = next_state
-    print('Task End')
+    print('Task End')'''
+
+
+
+def get_Action(Humid, Temp):
+    agent = Agent()
+    agent.brain.Q.load_state_dict(torch.load(PATH))
+    agent.brain.Q.eval()
+    action = agent.action_process(state)
+    return action
